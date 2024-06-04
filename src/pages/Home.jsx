@@ -1,17 +1,19 @@
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { useEffect, useRef, useState } from "react";
 import Invite from "../components/Invite";
 import { Chessboard } from "react-chessboard";
 import { useNavigate } from "react-router-dom";
 import { useSocket } from "../context/SocketProvider";
+import { challengeAccepted } from "../features/gameSlice";
 
-function AppLayout() {
+function Home() {
   const { email } = useSelector((store) => store.user);
   const { socket } = useSocket();
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [challenger, setChallenger] = useState([]);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   console.log(socket);
   const otherUsers = onlineUsers.filter((user) => user.email !== email);
@@ -47,8 +49,12 @@ function AppLayout() {
           );
         }
 
-        function handleAcceptance() {
-          console.log("going to navigate");
+        function handleAcceptance({ gameId, color }) {
+          // console.log("going to navigate");
+          console.log(color, gameId);
+          dispatch(challengeAccepted({ color, gameId }));
+          socket.emit("joinGame", gameId);
+
           navigate("/app/game");
         }
         socket.on("connect", handleConnect);
@@ -76,7 +82,7 @@ function AppLayout() {
         };
       }
     },
-    [email, navigate, socket],
+    [email, navigate, socket, dispatch],
   );
 
   function handleChallengeAccepted(challengerId) {
@@ -131,4 +137,4 @@ function AppLayout() {
   );
 }
 
-export default AppLayout;
+export default Home;
