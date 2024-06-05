@@ -9,6 +9,10 @@ function Game() {
   const { socket } = useSocket();
   const [game, setGame] = useState(new Chess());
   const [fen, setFen] = useState(game.fen());
+  const [gameOver, setGameOver] = useState(false);
+  const [gameResult, setGameResult] = useState("");
+  const [whiteTime, setWhiteTime] = useState(300000);
+  const [blackTime, setBlackTime] = useState(300000);
 
   useEffect(() => {
     if (socket) {
@@ -17,7 +21,13 @@ function Game() {
         setFen(newFen);
       }
 
+      function handleGameOver(result) {
+        setGameOver(true);
+        setGameResult(result);
+        console.log(result);
+      }
       socket.on("updateBoard", handleUpdateBoard);
+      socket.on("gameOver", handleGameOver);
 
       return () => {
         socket.off("updateBoard", handleUpdateBoard);
@@ -25,8 +35,27 @@ function Game() {
     }
   }, [socket, game]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!gameOver) {
+        setWhiteTime((prev) =>
+          Math.max(prev - (game.turn() === "w" ? 1000 : 0), 0),
+        );
+        setBlackTime((prev) =>
+          Math.max(prev - (game.turn() === "b" ? 1000 : 0), 0),
+        );
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [game.turn(), gameOver]);
+
   function onPieceDrop(sourceSquare, targetSquare) {
     const gameCopy = new Chess(game.fen());
+
+    if (gameCopy.turn() !== color[0]) {
+      return false;
+    }
     const move = gameCopy.move({
       from: sourceSquare,
       to: targetSquare,
@@ -38,9 +67,15 @@ function Game() {
     setGame(gameCopy);
     setFen(gameCopy.fen());
     socket.emit("movePiece", { gameId, fen: gameCopy.fen() });
+    // checkGameOver(gameCopy);
     return true;
   }
 
+  function formatTime(time) {
+    const minutes = Math.floor(time / (60 * 1000));
+    const seconds = Math.floor((time % 60000) / 1000);
+    return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+  }
   return (
     <div className="flex justify-between p-12">
       <div className="h-[35rem] w-1/5 border border-solid border-black">
@@ -54,8 +89,19 @@ function Game() {
           onPieceDrop={onPieceDrop}
         />
       </div>
-      <div className="w-1/5 border border-solid border-black">
-        Time and other stuffs
+      <div className="my-40 mr-20 h-[20rem] w-1/5 border border-solid border-black">
+        <div>
+          {color === "white"
+            ? `Black: ${formatTime(blackTime)}`
+            : `White: ${formatTime(whiteTime)}`}
+        </div>
+        <div>misc</div>
+        <div>draw res</div>
+        <div>
+          {color === "white"
+            ? `White: ${formatTime(whiteTime)}`
+            : `Black: ${formatTime(blackTime)}`}
+        </div>
       </div>
     </div>
   );
