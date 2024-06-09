@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import eslint from "vite-plugin-eslint";
 import tailwindcss from "tailwindcss";
+import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -14,6 +15,11 @@ export default defineConfig({
   css: {
     postcss: {
       plugins: [tailwindcss()],
+    },
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
     },
   },
 });

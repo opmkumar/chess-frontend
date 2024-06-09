@@ -3,6 +3,7 @@ import { useSocket } from "../context/SocketProvider";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { Chess } from "chess.js";
+import ModalDialog from "@/components/ModalDialog";
 
 function Game() {
   const { color, gameId } = useSelector((store) => store.game);
@@ -10,9 +11,13 @@ function Game() {
   const [game, setGame] = useState(new Chess());
   const [fen, setFen] = useState(game.fen());
   const [gameOver, setGameOver] = useState(false);
-  const [gameResult, setGameResult] = useState("");
+  // const [gameResult, setGameResult] = useState("");
   const [whiteTime, setWhiteTime] = useState(300000);
   const [blackTime, setBlackTime] = useState(300000);
+  const [isModelOpen, setIsModelOpen] = useState(false);
+  // const [winner, setWinner] = useState("");
+  const [message, setMessage] = useState("");
+  const [drawOffer, setDrawOffer] = useState("");
 
   useEffect(() => {
     if (socket) {
@@ -21,34 +26,43 @@ function Game() {
         setFen(newFen);
       }
 
-      function handleGameOver(result) {
+      function handleGameOver(result, winner) {
         setGameOver(true);
-        setGameResult(result);
+        // setGameResult(result);
+        setIsModelOpen(true);
+        // setWinner(winner);
+        if (winner.length !== 0) {
+          if (result === "checkmate") setMessage(`${winner} won by checkmate`);
+          else setMessage(result);
+        } else {
+          if (result === "draw") setMessage("DRAW");
+          else setMessage(`Draw by ${result}`);
+        }
+
+        socket.emit("stopTimer", gameId);
+
         console.log(result);
       }
+
+      function handleUpdateTimes(times) {
+        setWhiteTime(times.whiteTime);
+        setBlackTime(times.blackTime);
+      }
+
+      function handleRecieveDraw(opponent) {
+        setDrawOffer(`${opponent} sent you a draw offer`);
+        console.log(`${opponent} sent you a draw offer`);
+      }
       socket.on("updateBoard", handleUpdateBoard);
+      socket.on("updateTimes", handleUpdateTimes);
       socket.on("gameOver", handleGameOver);
+      socket.on("recieveDraw", handleRecieveDraw);
 
       return () => {
         socket.off("updateBoard", handleUpdateBoard);
       };
     }
-  }, [socket, game]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!gameOver) {
-        setWhiteTime((prev) =>
-          Math.max(prev - (game.turn() === "w" ? 1000 : 0), 0),
-        );
-        setBlackTime((prev) =>
-          Math.max(prev - (game.turn() === "b" ? 1000 : 0), 0),
-        );
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [game.turn(), gameOver]);
+  }, [socket, game, gameId]);
 
   function onPieceDrop(sourceSquare, targetSquare) {
     const gameCopy = new Chess(game.fen());
@@ -67,7 +81,6 @@ function Game() {
     setGame(gameCopy);
     setFen(gameCopy.fen());
     socket.emit("movePiece", { gameId, fen: gameCopy.fen() });
-    // checkGameOver(gameCopy);
     return true;
   }
 
@@ -75,6 +88,21 @@ function Game() {
     const minutes = Math.floor(time / (60 * 1000));
     const seconds = Math.floor((time % 60000) / 1000);
     return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+  }
+
+  function handleResign(gameId, color) {
+    socket.emit("resign", { gameId, color });
+  }
+
+  function handleDraw(gameId) {
+    socket.emit("sendDraw", gameId);
+  }
+
+  function handleDrawAccepted(gameId) {
+    socket.emit("drawAccepted", gameId);
+  }
+  function handleDrawRejected() {
+    setDrawOffer("");
   }
   return (
     <div className="flex justify-between p-12">
@@ -87,22 +115,49 @@ function Game() {
           boardOrientation={color}
           position={fen}
           onPieceDrop={onPieceDrop}
+          arePiecesDraggable={gameOver ? false : true}
         />
       </div>
-      <div className="my-40 mr-20 h-[20rem] w-1/5 border border-solid border-black">
+      <div className="my-40 mr-20 flex h-[20rem] w-1/5 flex-col justify-around border border-solid border-black">
         <div>
           {color === "white"
             ? `Black: ${formatTime(blackTime)}`
             : `White: ${formatTime(whiteTime)}`}
         </div>
         <div>misc</div>
-        <div>draw res</div>
+        {!drawOffer ? (
+          <div className="flex justify-evenly">
+            <button onClick={() => handleDraw(gameId)}>
+              <img src="./../../img/draw.png" alt="draw" className="w-[2rem]" />
+            </button>
+            <button onClick={() => handleResign(gameId, color)}>
+              <img
+                src="./../../img/resign.png"
+                alt="resign"
+                className="w-[2rem]"
+              />
+            </button>
+          </div>
+        ) : (
+          <div className="flex justify-evenly">
+            <span>{drawOffer}</span>
+            <button onClick={() => handleDrawAccepted(gameId)}>✅</button>
+            <button onClick={() => handleDrawRejected()}>❌</button>
+          </div>
+        )}
         <div>
           {color === "white"
             ? `White: ${formatTime(whiteTime)}`
             : `Black: ${formatTime(blackTime)}`}
         </div>
       </div>
+      {isModelOpen && (
+        <ModalDialog
+          open={isModelOpen}
+          onOpenChange={() => setIsModelOpen(false)}
+          message={message}
+        />
+      )}
     </div>
   );
 }
