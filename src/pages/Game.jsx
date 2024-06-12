@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { Chess } from "chess.js";
 import ModalDialog from "@/components/ModalDialog";
+import VideoChat from "@/components/VideoChat";
 
 function Game() {
   const { color, gameId } = useSelector((store) => store.game);
@@ -31,8 +32,14 @@ function Game() {
         // setGameResult(result);
         setIsModelOpen(true);
         // setWinner(winner);
-        if (winner.length !== 0) {
-          if (result === "checkmate") setMessage(`${winner} won by checkmate`);
+        if (winner !== null) {
+          const playerId = sessionStorage.getItem("id");
+          if (result === "checkmate")
+            setMessage(
+              winner === playerId
+                ? `You won by checkmate`
+                : "You lose by checkmate",
+            );
           else setMessage(result);
         } else {
           if (result === "draw") setMessage("DRAW");
@@ -107,7 +114,7 @@ function Game() {
   return (
     <div className="flex justify-between p-12">
       <div className="h-[35rem] w-1/5 border border-solid border-black">
-        chat
+        <VideoChat />
       </div>
       <div className=" w-[40rem] border border-solid border-black">
         <Chessboard

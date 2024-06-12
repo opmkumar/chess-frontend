@@ -10,9 +10,10 @@ import {
 import { useNavigate } from "react-router-dom";
 
 function ModalDialog({ open, onOpenChange, message }) {
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
   function handleOnClick() {
-    console.log("hello");
+    // console.log("hello");
+    navigate("/app/home");
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -40,7 +41,7 @@ function ModalDialog({ open, onOpenChange, message }) {
             onClick={handleOnClick}
             className="mt-4 h-10 rounded bg-blue-500 px-4 text-white"
           >
-            Confirm
+            Go back to Home page
           </button>
         </DialogFooter>
       </DialogContent>

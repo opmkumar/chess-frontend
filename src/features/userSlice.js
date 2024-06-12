@@ -4,7 +4,7 @@ const initialState = {
   username: "",
   email: "",
   password: "",
-  isAuthenticated: false,
+  isAuthenticated: sessionStorage.getItem("isAuthenticated") === "true",
   isLoading: false,
   error: null,
   otp: null,
@@ -29,6 +29,7 @@ export const createUser = createAsyncThunk(
       }
       const result = await res.json();
       sessionStorage.setItem("jwt", result.token);
+      sessionStorage.setItem("id", result.data.user._id);
       return result;
     } catch (error) {
       return rejectWithValue({ error: error.message });
@@ -54,6 +55,8 @@ export const getUser = createAsyncThunk(
       }
       const result = await res.json();
       sessionStorage.setItem("jwt", result.token);
+      sessionStorage.setItem("id", result.data.user._id);
+
       return result;
     } catch (error) {
       return rejectWithValue({ error: error.message });
@@ -83,6 +86,7 @@ export const verifyOtp = createAsyncThunk(
         return rejectWithValue(error);
       }
       const result = await res.json();
+      sessionStorage.setItem("isAuthenticated", "true");
       console.log("everything worked", result);
       return result;
     } catch (error) {
@@ -94,6 +98,18 @@ export const verifyOtp = createAsyncThunk(
 const userSlice = createSlice({
   name: "user",
   initialState,
+  reducers: {
+    login: (state) => {
+      state.isAuthenticated = true;
+      sessionStorage.setItem("isAuthenticated", "true");
+    },
+    logout: (state) => {
+      state.isAuthenticated = false;
+      sessionStorage.removeItem("isAuthenticated");
+      sessionStorage.removeItem("id");
+      sessionStorage.removeItem("jwt");
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(createUser.pending, (state) => {
